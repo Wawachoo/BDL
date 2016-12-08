@@ -1,0 +1,6 @@
+#!/usr/bin/env python
+
+import bdl.__main__
+
+
+bdl.__main__.main()
