@@ -10,19 +10,29 @@ ProgressState = namedtuple("ProgressState", ["count", "finished", "failed",
 
 class Progress:
 
-    def __init__(self, count=0):
+    def __init__(self, count=0, name=None):
         """Initializes object.
 
         Arguments:
             count (int, optional): Number of items to download. `< 1` means
                 that the number of items cannot be deduced.
+            name (str, optional): Name of the current operation.
         """
         self.__lock = threading.Lock()
-        self.__entries = []
-        self.__currents = []
-        self.__finished = []
-        self.__failed = []
+        self.reset()
         self.__count = count
+        self.__name = name
+
+    def reset(self):
+        """Reset progress state.
+        """
+        with self.__lock:
+            self.__entries = []
+            self.__currents = []
+            self.__finished = []
+            self.__failed = []
+            self.__count = 0
+            self.__name = None
 
     @property
     def count(self):
@@ -33,6 +43,16 @@ class Progress:
     def count(self, value):
         with self.__lock:
             self.__count = value
+
+    @property
+    def name(self):
+        with self.__lock:
+            return copy.copy(self.__name)
+
+    @name.setter
+    def name(self, value):
+        with self.__lock:
+            self.__name = value
 
     def add(self, url, percentage=0):
         """Add an `url` to the progress list.

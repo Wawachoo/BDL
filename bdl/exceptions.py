@@ -14,6 +14,12 @@ class InvalidURLError(BDLError):
         self.url = url
 
 
+class ConnectError(BDLError):
+    def __init__(self, url, message=""):
+        super().__init__(message)
+        self.url = url
+
+
 # Repository exceptions
 # =====================
 
@@ -35,11 +41,6 @@ class RepoLoadError(RepoError):
         super().__init__(repo_name, message)
 
 
-class RepoConnectError(RepoError):
-    def __init__(self, repo_name, message=""):
-        super().__init__(repo_name, message)
-
-
 class RepoUpdateError(RepoError):
     def __init__(self, repo_name, message=""):
         super().__init__(repo_name, message)
@@ -48,6 +49,24 @@ class RepoUpdateError(RepoError):
 class RepoStopError(RepoError):
     def __init__(self, repo_name, message=""):
         super().__init__(repo_name, message)
+
+
+# Config exceptions
+# =================
+
+
+class ConfigError(BDLError):
+    def __init__(self, path, message=""):
+        path = path is not None and path or "<unknow>"
+        super().__init__("{}: {}".format(path, message))
+        self.path = path
+
+
+class ConfigContentError(ConfigError):
+    def __init__(self, path, message=""):
+        message = "Configuration content error: {}".format(message)
+        super().__init__(path, message)
+
 
 
 # Index exceptions

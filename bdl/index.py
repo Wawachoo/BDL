@@ -64,16 +64,54 @@ query_update_item = """UPDATE bdlitems
 
 class Index:
 
-    @staticmethod
-    def validate(db, path):
-        """Validate the database schema.
+    def __init__(self, path, logname=None, template=None):
+        """Initializes the instance.
 
         Arguments:
-            db (sqlite connection): The database to validate.
-            path (str): The database path.
+            path (str): Database file path.
+            logname (str, optional): Log name. Default is `path`.
+            template (str, optional): Storename template.
+        """
+        self.__db = None
+        self.__path = path
+        self.__position = 0
+        self.__template = template is not None and template or ("{position}."
+                                                                "{extension}")
+        self.__logger = bdl.logging.Logger(
+            "index", logname is not None and logname or path)
 
-        Returns:
-            None
+    @property
+    def template(self):
+        return self.__template
+
+    @template.setter
+    def template(self, value):
+        if value is not None and len(value) > 0:
+            self.__template = value
+
+    def create(self):
+        """Create the files database.
+        """
+        if not os.path.isfile(self.__path):
+            self.__db = sqlite3.connect(self.__path)
+            self.__db.execute(query_create_bdlitems)
+            self.__db.commit()
+            self.__db.close()
+            self.__logger.debug("Index created as {}".format(self.__path))
+
+    def load(self):
+        """Load the files database.
+        """
+        # Load and validate the database.
+        self.__db = sqlite3.connect(self.__path, check_same_thread=False)
+        self.validate()
+        # Find the next position attribute.
+        last_item, last_position = self.get_last()
+        self.__position = last_position >= 0 and last_position or 0
+        self.__logger.debug("Index loaded")
+
+    def validate(self):
+        """Validate the database schema.
 
         Raises:
             IndexSchemaError: The database schema is invalid.
@@ -88,124 +126,33 @@ class Index:
         invalid_columns = []
         # Check each column.
         try:
-            schema = db.execute(query_schema_bdlitems).fetchall()
+            schema = self.__db.execute(query_schema_bdlitems).fetchall()
             for i in range(0, len(refschema)):
                 if i >= len(schema):
                     missing_columns.append(refschema[i][1])
                 elif schema[i] != refschema[i]:
                     invalid_columns.append(refschema[i][1])
         except sqlite3.OperationalError as err:
-            raise IndexDBSchemaError(path, "{}".format(str(err))) from err
+            raise IndexDBSchemaError(self.__path, str(err)) from err
         if len(missing_columns) > 0 or len(invalid_columns) > 0:
-            raise IndexDBSchemaError(path, missing_columns, invalid_columns)
-
-    @staticmethod
-    def update(db, path, logger=None):
-        """Update a database schema.
-
-        Arguments:
-            db (sqlite connection): The database to validate.
-            path (str): The database path.
-        """
-
-        def _update_name():
-            logger and logger.info("Trying to update table name") or None
-            db.execute("""ALTER TABLE files RENAME TO bdlitems""")
-
-        def _update_schema():
-            logger and logger.info("Trying to update table schema") or None
-            # Get current DB schema.
-            schema = db.execute(query_schema_bdlitems).fetchall()
-            # Get reference DB schema.
-            refdb = sqlite3.connect(":memory:")
-            refdb.execute(query_create_bdlitems)
-            refschema = refdb.execute(query_schema_bdlitems).fetchall()
-            # Extract schema columns definition.
-            ref_columns = query_create_bdlitems.split('(')[-1].split(')')[0].replace('\n', '').split(',')
-            # Update schema.
-            for i in range(len(schema), len(refschema)):
-                logger and logger.info("Add column {}".format(refschema[i][1])) or None
-                db.execute(("ALTER TABLE bdlitems ADD COLUMN {}")
-                           .format(ref_columns[i]))
-
-        # Apply each update procedure.
-        for procedure in [_update_name, _update_schema, ]:
-            try:
-                procedure()
-                db.commit()
-            except sqlite3.OperationalError as error:
-                raise IndexDBError(path, str(error)) from error
-
-    def __init__(self, path, logname=None):
-        """Initializes the instance.
-
-        Arguments:
-            path (str): Path for files database.
-            logname (str, optional): Index log's name. Defaults to index path.
-        """
-        self.db = None
-        self.path = path
-        self.name = os.path.basename(self.path)
-        self.position = 0
-        self.__template = "{position}.{extension}"
-        self.logger = bdl.logging.Logger(
-            "index", logname is not None and logname or path)
-
-    @property
-    def template(self):
-        return self.__template
-
-    @template.setter
-    def template(self, value):
-        if value is not None:
-            self.__template = value
-
-    def create(self):
-        """Create the file database.
-        """
-        if not os.path.isfile(self.path):
-            self.db = sqlite3.connect(self.path)
-            self.db.execute(query_create_bdlitems)
-            self.db.commit()
-            self.db.close()
-            self.logger.debug("Index created as {}".format(self.path))
-
-    def load(self):
-        """Load the files database.
-        """
-        # Load and test the database.
-        self.db = sqlite3.connect(self.path)
-        try:
-            self.logger.debug("Validating index schema (1st try)")
-            self.validate(self.db, self.path)
-            retry = False
-        except IndexDBSchemaError as error:
-            retry = True
-            self.logger.warning("Index database is outdated, trying to update")
-            self.update(self.db, self.path, self.logger)
-        if retry is True:
-            self.logger.debug("Validating index database (2nd try)")
-            self.validate(self.db, self.path)
-        # Find the next position attribute.
-        last_item, last_position = self.get_last()
-        self.position = last_position >= 0 and last_position or 0
-        self.logger.debug("Index loaded")
+            raise IndexDBSchemaError(self.__path, missing_columns,
+                                     invalid_columns)
 
     def unload(self):
         """Unload (close) the files database.
         """
-        if self.db is not None:
-            self.db.commit()
-            self.db.close()
-            self.db = None
-        self.logger.debug("Index unloaded")
+        if self.__db is not None:
+            self.__db.commit()
+            self.__db.close()
+            self.__db = None
+        self.__logger.debug("Index unloaded")
 
     def commit(self):
         """Saves the files database to disk.
         """
-        if self.db is not None:
-            self.db.commit()
-        self.logger.debug("Index commited")
+        if self.__db is not None:
+            self.__db.commit()
+        self.__logger.debug("Index commited")
 
     def has_item(self, item):
         """Check if `item` URL is indexed.
@@ -218,7 +165,7 @@ class Index:
             * bool: `True` if item exists, `False` otherwise
             * int: Item position or -1
         """
-        cursor = self.db.cursor()
+        cursor = self.__db.cursor()
         cursor.execute(query_has_item, {"url": item.url})
         result = cursor.fetchone()
         if result is not None:
@@ -236,7 +183,7 @@ class Index:
         Returns:
             int: Number of indexed items.
         """
-        cursor = self.db.cursor()
+        cursor = self.__db.cursor()
         cursor.execute(query_count_items)
         return int(cursor.fetchone()[0])
 
@@ -256,7 +203,7 @@ class Index:
                 [0]: bdl.item.Item: Item instance;
                 [1]: Item position in databse.
         """
-        rows = self.db.execute(query).fetchall()
+        rows = self.__db.execute(query).fetchall()
         if len(rows) < 1:
             yield (None, 0)
         else:
@@ -276,13 +223,6 @@ class Index:
                 [0]: bdl.item.Item: First entry in index;
                 [1]: Item position in databse.
         """
-        # cursor = self.db.cursor()
-        # cursor.execute(query_first_item)
-        # db_item = cursor.fetchone()
-        # if db_item is None:
-        #     return (None, 0)
-        # else:
-        #     return (Item(*db_item[0:4], None, db_item[4], db_item[6]), db_item[6])
         queried = [i for i in self.get_queried(query_first_item)]
         return queried[0]
 
@@ -294,13 +234,6 @@ class Index:
                 [0]: bdl.item.Item: Last entry in index;
                 [1]: Item position in databse.
         """
-        # cursor = self.db.cursor()
-        # cursor.execute(query_last_item)
-        # db_item = cursor.fetchone()
-        # if db_item is None:
-        #     return (None, 0)
-        # else:
-        #     return (Item(*db_item[0:4], None, db_item[4], db_item[6]), db_item[6])
         queried = [i for i in self.get_queried(query_last_item)]
         return queried[0]
 
@@ -312,11 +245,6 @@ class Index:
                 [0]: bdl.item.Item: An entry in index;
                 [1]: Item position in databse.
         """
-        # cursor = self.db.cursor()
-        # cursor.execute(query_all_items)
-        # db_items = cursor.fetchall()
-        # for db_item in db_items:
-        #     yield (Item(*db_item[0:4], None, db_item[4], db_item[6]), db_item[6])
         for itempos in self.get_queried(query_all_items):
             yield (itempos)
 
@@ -345,23 +273,23 @@ class Index:
         Returns:
             Item storename as `str` or `None`
         """
-        self.logger.debug("Received item: {}".format(item.url))
+        self.__logger.debug("Received item: {}".format(item.url))
         # Ensure the item is valid.
         if item is None:
-            self.logger.warning(
+            self.__logger.warning(
                 "Ingoring item: {}: item is 'None'".format(item.url))
             return None
         # Check if item is already indexed.
         item_exists, item_position = self.has_item(item)
         # Item indexed and cannot be updated.
         if item_exists and update is not True:
-            self.logger.warning(("Ignoring already indexed item: {}")
-                                .format(item.url))
+            self.__logger.warning(("Ignoring already indexed item: {}")
+                                  .format(item.url))
             return None
         # Item is indexed but can be updated.
         elif item_exists and update is True:
-            cursor = self.db.cursor()
-            self.logger.debug("Updating item: {}".format(item.url))
+            cursor = self.__db.cursor()
+            self.__logger.debug("Updating item: {}".format(item.url))
             item.storename = self.build_storename(item, item_position,
                                                   self.__template)
             cursor.execute(query_update_item, {"url": item.url,
@@ -371,22 +299,22 @@ class Index:
                                                "metadata": item.metadata})
         # Item not indexed in the database.
         elif not item_exists:
-            cursor = self.db.cursor()
-            self.logger.debug("Indexing item: {}".format(item.url))
-            item.storename = self.build_storename(item, (self.position + 1),
+            cursor = self.__db.cursor()
+            self.__logger.debug("Indexing item: {}".format(item.url))
+            item.storename = self.build_storename(item, (self.__position+1),
                                                   self.__template)
-            cursor.execute(query_insert_item, {"position": (self.position + 1),
+            cursor.execute(query_insert_item, {"position": (self.__position+1),
                                                "url": item.url,
                                                "filename": item.filename,
                                                "extension": item.extension,
                                                "storename": item.storename,
                                                "hashed": item.hashed,
                                                "metadata": item.metadata})
-            self.position += 1
+            self.__position += 1
         # Write item to disk.
         root = root is not None and root or '.'
         fullpath = os.path.join(root, item.storename)
-        self.logger.debug("Storing item: {} -> {}".format(item.url, fullpath))
+        self.__logger.debug("Storing item: {}: {}".format(item.url, fullpath))
         if item.has_tempfile:
             shutil.move(item.tempfile, fullpath)
         else:
@@ -404,24 +332,27 @@ class Index:
         """
         template = template is not None and template or self.__template
         for item, position in self.get_all():
+            if item is None:
+                break
             storename = self.build_storename(item, position, template)
-            self.logger.debug("Renaming item: {} from {} to {}"
-                              .format(item.url, item.storename, storename))
+            self.__logger.debug("Renaming item: {} from {} to {}"
+                                .format(item.url, item.storename, storename))
             # Update item in database.
-            self.db.execute(query_update_item, {"url": item.url,
-                                                "filename": item.filename,
-                                                "extension": item.extension,
-                                                "storename": storename,
-                                                "metadata": item.metadata})
+            self.__db.execute(query_update_item, {"url": item.url,
+                                                  "filename": item.filename,
+                                                  "extension": item.extension,
+                                                  "storename": storename,
+                                                  "metadata": item.metadata})
             # Write item to disk.
             root = root is not None and root or '.'
             fullpath = os.path.join(root, item.storename)
-            self.logger.debug("Storing item: {} as {}".format(item.url,
-                                                              fullpath))
+            self.__logger.debug("Storing item: {} as {}".format(item.url,
+                                                                fullpath))
             try:
                 shutil.move(os.path.join(root, item.storename),
                             os.path.join(root, storename))
             except FileNotFoundError as error:
-                self.logger.warning("Missing item: {}".format(item.storename))
+                self.__logger.warning("Missing item: {}"
+                                      .format(item.storename))
             except Exception:
                 raise

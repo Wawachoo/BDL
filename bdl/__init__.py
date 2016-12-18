@@ -1,5 +1,6 @@
 from . import item
 from . import index
+from . import config
 from . import engine
 from . import repository
 from . import exceptions

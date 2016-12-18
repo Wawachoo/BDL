@@ -27,39 +27,38 @@ def process_config(config):
     return _config
 
 
-def print_progress(repo, thread):
-    """Print a repository task progress.
-    """
-    def printer(total):
-        print("\r{:.0f}% (count: {}, finished: {}, failed:{})"
-              .format(total.percentage, total.count, total.finished,
-                      total.failed),
-              end='')
-
-    while thread.is_alive():
-        printer(repo.progress.total)
-        time.sleep(0.05)
-    printer(repo.progress.total)
-    print()
-
-
-def run_repo_call(repo, call, **kwargs):
-    """Run a repository API call in a thread.
+def run_in_thread(repository, method, *args, **kwargs):
+    """Run a repository call in a thread.
     """
     def run():
         cur_name = None
         try:
-            call()
+            method()
         except bdl.exceptions.BDLError as error:
             print("\nBDL error: {}".format(str(error)), file=sys.stderr)
-            raise
         except Exception as error:
             print("\nError: {}".format(str(error)), file=sys.stderr)
 
-    thread = threading.Thread(target=run)
-    thread.start()
-    print_progress(repo, thread)
-    thread.join()
+    def print_progress(progress):
+        print("\r{:.0f}% (count: {}, finished: {}, failed: {})"
+              .format(progress["percentage"], progress["count"],
+                      progress["finished"], progress["failed"]),
+              end='')
+
+    try:
+        thread = threading.Thread(target=run)
+        thread.start()
+        while thread.is_alive():
+            print_progress(repository.get_progress())
+            time.sleep(0.05)
+        print_progress(repository.get_progress())
+    except (Exception, KeyboardInterrupt):
+        repository.stop()
+        repository.unload()
+        print()
+        sys.exit(1)
+    repository.unload()
+    print()
 
 
 # =============================================================================
@@ -69,19 +68,19 @@ def run_repo_call(repo, call, **kwargs):
 def command_connect(address, path, **kwargs):
     """Connect to a repository.
     """
-    print("Connect: {}".format(path))
-    repo = bdl.repository.Repository(url=address, path=path,
-                                     template=kwargs.get("template"))
-    run_repo_call(repo, repo.connect)
+    repo = bdl.repository.connect(url=address, path=path)
+    repo.load()
+    repo.rename(template=kwargs.get("template"))
+    repo.unload()
 
 
 def command_clone(address, path, **kwargs):
     """Clone a repository.
     """
-    print("Clone: {}".format(path))
-    repo = bdl.repository.Repository(url=address, path=path,
-                                     template=kwargs.get("template"))
-    run_repo_call(repo, repo.clone)
+    print("Clone: {}".format(address))
+    repo = bdl.repository.connect(url=address, path=path)
+    repo.load()
+    run_in_thread(repo, repo.update)
 
 
 def command_update(paths, **kwargs):
@@ -89,9 +88,9 @@ def command_update(paths, **kwargs):
     """
     for path in paths:
         print("Update: {}".format(path))
-        repo = bdl.repository.Repository(path=path,
-                                         template=kwargs.get("template"))
-        run_repo_call(repo, repo.update)
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        run_in_thread(repo, repo.update)
 
 
 def command_stash(paths, **kwargs):
@@ -99,9 +98,9 @@ def command_stash(paths, **kwargs):
     """
     for path in paths:
         print("Stash: {}".format(path))
-        repo = bdl.repository.Repository(path=path,
-                                         template=kwargs.get("template"))
-        run_repo_call(repo, repo.stash)
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        run_in_thread(repo, repo.stash)
 
 
 def command_reset(paths, **kwargs):
@@ -109,9 +108,9 @@ def command_reset(paths, **kwargs):
     """
     for path in paths:
         print("Reset: {}".format(path))
-        repo = bdl.repository.Repository(path=path,
-                                         template=kwargs.get("template"))
-        run_repo_call(repo, repo.reset)
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        run_in_thread(repo, repo.reset)
 
 
 def command_checkout(paths, **kwargs):
@@ -119,30 +118,36 @@ def command_checkout(paths, **kwargs):
     """
     for path in paths:
         print("Checkout: {}".format(path))
-        repo = bdl.repository.Repository(path=path,
-                                         template=kwargs.get("template"))
-        run_repo_call(repo, repo.checkout)
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        run_in_thread(repo, repo.checkout)
 
 
 def command_status(paths, **kwargs):
     """Status of the specified repositories.
     """
     for path in paths:
-        stats = bdl.repository.Repository(path=path).status()
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        stats = repo.get_status()
         print(("reachable: {}, indexed: {}, new: {}, missing: {}")
-              .format(stats.reachable, stats.indexed,
-                      stats.new, stats.missing))
+              .format(stats["reachable"], stats["indexed"],
+                      stats["new"], stats["missing"]))
+        repo.unload()
 
 
 def command_diff(paths, **kwargs):
     """Diff. between indexed and local files.
     """
     for path in paths:
-        items = bdl.repository.Repository(path=path).diff()
+        repo = bdl.repository.Repository(path=path)
+        repo.load()
+        items = repo.get_missing()
         if len(items) > 0:
             print("Found {} missing items :".format(len(items)))
             for storename, url in items:
                 print("{} ({})".format(storename, url))
+        repo.unload()
 
 
 def command_rename(paths, **kwargs):
@@ -150,7 +155,9 @@ def command_rename(paths, **kwargs):
     """
     for path in paths:
         repo = bdl.repository.Repository(path=path)
+        repo.load()
         repo.rename(template=kwargs.get("template"))
+        repo.unload()
 
 
 def command_about(req=""):
