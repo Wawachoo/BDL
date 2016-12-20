@@ -16,7 +16,7 @@ configtemplate = {
                            test=lambda x: len(x) >= 0),
         "url": Configrule(types=[str, ], default=None,
                           test=lambda x: len(x) >= 0),
-        "template": Configrule(types=[str, None],
+        "template": Configrule(types=[str, type(None)],
                                default="{position}.{extension}",
                                test=lambda x: True)
     },
@@ -43,19 +43,20 @@ class Config:
         If the configuration file doesn't exists, a new one is created using
         the configuration template `configtemplate`.
         """
-        def copy_from_template(template, current):
+        def copy_from_template(template):
+            current = {}
             for refkey, refvalue in template.items():
                 if isinstance(refvalue, Configrule):
-                    current[refkey] = refvalue.types[0]()
                     if refvalue.default is not None:
-                        current[refkey] = refvalue.default
+                        current[refkey] = refvalue.types[0](refvalue.default)
+                    else:
+                        current[refkey] = refvalue.types[0]()
                 elif isinstance(refvalue, dict):
-                    current[refkey] = {}
-                    copy_from_template(refvalue, current[refkey])
+                    current[refkey] = copy_from_template(refvalue)
+            return copy.copy(current)
 
         if not os.path.isfile(self.__path):
-            self.__config = {}
-            copy_from_template(configtemplate, self.__config)
+            self.__config = copy_from_template(configtemplate)
             self.commit()
 
     def load(self):
@@ -80,9 +81,9 @@ class Config:
         Raises:
             ConfigContentError: The configuration file is invalid.
         """
-        def validate_from_template(template, current, keypath=""):
+        def validate_from_template(template, current, _keypath=""):
             for refkey, refvalue in template.items():
-                keypath = "{}.{}".format(keypath, refkey)
+                keypath = "{}.{}".format(_keypath, refkey)
                 if refkey not in current:
                     raise ConfigContentError("Missing key {}".format(keypath))
                 curvalue = current[refkey]
@@ -152,4 +153,5 @@ class Config:
 
     @template.setter
     def template(self, value):
-        self.__config["repo"]["template"] = value
+        if value is not None:
+            self.__config["repo"]["template"] = value

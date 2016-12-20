@@ -53,6 +53,9 @@ def generic(urls, timeout=5.000, progress=None, headers={}, session=None):
                                 tempfile=temp.name)
         except requests.exceptions.Timeout as err:
             raise bdl.exceptions.DownloadTimeoutError(url, str(err)) from err
+        except requests.exceptions.InvalidSchema as err:
+            progress.mark_failed(url)
+            yield None
         except Exception as err:
             raise bdl.exceptions.DownloadError(url, str(err)) from err
 

@@ -24,7 +24,11 @@ def connect(url, name=None, path='.'):
         engine_module = bdl.engine.load_by_url(url)
         bdl.engine.validate(engine_module)
         if name is None:
-            name = engine_module.Engine.get_repo_name(url).replace('/', '')
+            name = engine_module.Engine.get_repo_name(url)
+            if name is None:
+                raise ConnectError(url=url,
+                                   message="Cannot deduce repository name")
+            name = name.replace('/', '')
     except EngineError as error:
         raise ConnectError(url=url, message=str(error)) from error
     # Create repository.

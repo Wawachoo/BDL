@@ -1,4 +1,5 @@
 import sys
+import os
 import argparse
 import re
 import logging
@@ -65,20 +66,21 @@ def run_in_thread(repository, method, *args, **kwargs):
 # REPOSITORY API CALLS WRAPPER & UTILITY COMMANDS
 # =============================================================================
 
-def command_connect(address, path, **kwargs):
+def command_connect(address, name, path, **kwargs):
     """Connect to a repository.
     """
-    repo = bdl.repository.connect(url=address, path=path)
+    print("Connect: {}".format(address))
+    repo = bdl.repository.connect(url=address, name=name, path=path)
     repo.load()
     repo.rename(template=kwargs.get("template"))
     repo.unload()
 
 
-def command_clone(address, path, **kwargs):
+def command_clone(address, name, path, **kwargs):
     """Clone a repository.
     """
     print("Clone: {}".format(address))
-    repo = bdl.repository.connect(url=address, path=path)
+    repo = bdl.repository.connect(url=address, name=name, path=path)
     repo.load()
     run_in_thread(repo, repo.update)
 
@@ -229,7 +231,7 @@ def parse():
                         help="{} these repositories".format(cmd))
         _p.add_argument("--template", type=str, default=None,
                         help="Files name template")
-        _p.add_argument("--loglevel", type=str, default="WARNING",
+        _p.add_argument("--loglevel", type=str, default="ERROR",
                         choices=["DEBUG", "INFO", "WARNING", "ERROR",
                                  "CRITICAL"])
     # 'about' command.
@@ -255,8 +257,11 @@ def run_command(args):
     try:
         if args.command in ["connect", "clone"]:
             kwargs = {"template": args.template, }
+            name = args.path is not None and os.path.basename(args.path) or None
+            path = args.path is not None and os.path.dirname(args.path) or None
             globals()["command_{}".format(args.command)](args.address,
-                                                         args.path,
+                                                         name,
+                                                         path,
                                                          **kwargs)
         elif args.command in ["update", "stash", "reset", "checkout",
                               "status", "diff", "rename"]:
