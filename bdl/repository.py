@@ -3,7 +3,6 @@ import json
 import sqlite3
 import urllib
 import copy
-import threading
 import bdl
 from bdl.exceptions import *
 
@@ -83,7 +82,6 @@ class Repository:
         # Initializes progress.
         self.__progress = bdl.progress.Progress()
         # Status.
-        self.__lock = threading.Lock()
         self.__is_loaded = False
         self.__is_stop = False
 
@@ -144,8 +142,7 @@ class Repository:
     def stop(self):
         """Stop the current action.
         """
-        with self.__lock:
-            self.__is_stop = True
+        self.__is_stop = True
 
     @__assert_loaded
     def get_missing(self):
@@ -243,11 +240,11 @@ class Repository:
             # Receive and store available items.
             if self.__progress.count != 0:
                 for item in updater_func(*updater_args):
-                    with self.__lock:
-                        if self.__is_stop:
-                            self.__logger.info("Stopped")
-                            self.__is_stop = False
-                            break
+                    # with self.__lock:
+                    if self.__is_stop:
+                        self.__logger.info("Stopped")
+                        self.__is_stop = False
+                        break
                     if item is not None:
                         self.__index.store(item,
                                            root=self.__path,

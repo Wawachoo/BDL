@@ -21,10 +21,11 @@ function to download those files.
 
 
 ## Supported sites
-This is a short list of engines and their supported sites:
+This is a short list of engines and supported sites:
 * **4Chan**: [BDL_4Chan](https://github.com/Wawachoo/BDL_4Chan)
 * **JoyReactor**: [BDL_JoyReactor](https://github.com/Wawachoo/BDL_JoyReactor)
 * **8Chan**: [BDL_8CH](https://github.com/Wawachoo/BDL_8CH)
+* **7Chan**: [BDL_7Chan](https://github.com/Wawachoo/BDL_7Chan)
 
 
 ## Installation
