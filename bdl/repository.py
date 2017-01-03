@@ -156,16 +156,17 @@ class Repository:
                     items.append((item.storename, item.url))
         return items
 
+    @__assert_loaded
     def get_status(self):
         """Returns the repository status.
         """
         # Common status information.
-        stats = {"reachable": self.__is_loaded,
+        stats = {"reachable": self.__engine.is_reachable(self.__config.url),
                  "name": self.__config.name,
                  "url": self.__config.url,
                  "site": urllib.parse.urlparse(self.__config.url).netloc}
         # Advanced status information.
-        if self.__is_loaded:
+        if stats["reachable"] is True:
             stats["indexed"] = self.__index.count()
             stats["missing"] = len(self.get_missing())
             stats["new"] = self.__engine.count_new(*self.__index.get_last())
