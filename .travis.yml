@@ -12,4 +12,6 @@ python:
 install: "pip install lxml requests"
 
 # Run tests.
-script: ./test/run.sh
+script:
+  - "cd test"
+  - "bash run.sh"
