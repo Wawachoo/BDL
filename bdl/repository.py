@@ -153,7 +153,8 @@ class Repository:
             for item, position in self.__index.get_all():
                 if (item is not None and
                 not os.path.isfile(os.path.join(self.__path, item.storename))):
-                    items.append((item.storename, item.url))
+                    # items.append((item.storename, item.url))
+                    items.append(item)
         return items
 
     @__assert_loaded
@@ -222,9 +223,11 @@ class Repository:
         if up_missing is True and up_existing is False:
             index_update = True
             counter_func = lambda x: len(x)
-            counter_args = ([url for name, url in self.get_missing()], )
+            # counter_args = ([url for name, url in self.get_missing()], )
+            counter_args = [self.get_missing(), ]
             updater_func = self.__engine.update_selection
-            updater_args = ([url for name, url in self.get_missing()], )
+            # updater_args = ([url for name, url in self.get_missing()], )
+            updater_args = [self.get_missing(), ]
         # Configure to download all files.
         if up_existing is True:
             index_update = True

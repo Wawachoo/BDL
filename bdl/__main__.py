@@ -37,8 +37,10 @@ def run_in_thread(repository, method, *args, **kwargs):
             method()
         except bdl.exceptions.BDLError as error:
             print("\nBDL error: {}".format(str(error)), file=sys.stderr)
+            # raise
         except Exception as error:
             print("\nError: {}".format(str(error)), file=sys.stderr)
+            # raise
 
     def print_progress(progress):
         print("\r{:.0f}% (count: {}, finished: {}, failed: {})"
@@ -90,9 +92,12 @@ def command_update(paths, **kwargs):
     """
     for path in paths:
         print("Update: {}".format(path))
-        repo = bdl.repository.Repository(path=path)
-        repo.load()
-        run_in_thread(repo, repo.update)
+        try:
+            repo = bdl.repository.Repository(path=path)
+            repo.load()
+            run_in_thread(repo, repo.update)
+        except Exception:
+            pass
 
 
 def command_stash(paths, **kwargs):

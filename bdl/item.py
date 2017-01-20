@@ -22,6 +22,7 @@ class Item:
             content (data, optional): Item content.
             hashed (str, optional): The item hash.
             metadata (dict, optional): The item metadata.
+            tempfile (str, optional): The item temporary file.
         """
         basename = os.path.basename(urllib.parse.urlparse(url).path)
         # Fundamental attributes.

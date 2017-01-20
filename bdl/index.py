@@ -315,7 +315,7 @@ class Index:
         root = root is not None and root or '.'
         fullpath = os.path.join(root, item.storename)
         self.__logger.debug("Storing item: {}: {}".format(item.url, fullpath))
-        if item.has_tempfile:
+        if item.tempfile is not None:
             shutil.move(item.tempfile, fullpath)
         else:
             with open(fullpath, "wb") as fd:
