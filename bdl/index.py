@@ -212,7 +212,8 @@ class Index:
                     metadata = json.loads(row[5])
                 except (json.decoder.JSONDecodeError, TypeError):
                     metadata = {}
-                yield (Item(*row[0:4], None, row[4], metadata),
+                yield (Item(*row[0:4], content=None, hash=row[4],
+                            metadata=metadata, tempfile=None),
                        row[6])
 
     def get_first(self):
