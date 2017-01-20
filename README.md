@@ -7,7 +7,7 @@ Extensible download tool.
 
 ## Principle
 BDL is a download tool. It *connects* to *repositories* (online
-ressources such as forums thread, imageboards, etc.), and provides a set of
+ressources such as forum threads, imageboards, etc.), and provides a set of
 methods to *update* (download) the repositories files locally.
 
 BDL by itself supports no site; It uses *engines* to find and download the
