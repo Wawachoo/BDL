@@ -3,14 +3,13 @@ language: python
 
 # Supported Python version.
 python:
-  - "3.2"
-  - "3.3"
   - "3.4"
   - "3.5"
+  - "3.6"
 
 # Install dependencies.
 install:
-  - "pip install lxml requests"
+  - "pip install requests"
   - "python setup.py install"
 
 # Run tests.
