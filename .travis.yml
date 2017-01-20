@@ -11,7 +11,7 @@ python:
 # Install dependencies.
 install:
   - "pip install lxml requests"
-  - "python setup.py"
+  - "python setup.py install"
 
 # Run tests.
 script:
