@@ -9,7 +9,9 @@ python:
   - "3.5"
 
 # Install dependencies.
-install: "pip install lxml requests"
+install:
+  - "pip install lxml requests"
+  - "python setup.py"
 
 # Run tests.
 script:
