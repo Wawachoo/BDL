@@ -212,12 +212,12 @@ class Index:
                     metadata = json.loads(row[5])
                 except (json.decoder.JSONDecodeError, TypeError):
                     metadata = {}
-                yield (Item(*row[0:4], content=None, hash=row[4],
+                yield (Item(*row[0:4], content=None, hashed=row[4],
                             metadata=metadata, tempfile=None),
                        row[6])
 
     def get_first(self):
-        """Return the first entry in index and its position.
+        """Returns the first entry in index and its position.
 
         Returns:
             Tuple as:
@@ -228,7 +228,7 @@ class Index:
         return queried[0]
 
     def get_last(self):
-        """Return the last entry in index.
+        """Returns the last entry in index.
 
         Returns:
             Tuple as:
