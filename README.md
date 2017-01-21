@@ -1,6 +1,8 @@
 # BDL
+[![Build Status](https://travis-ci.org/Wawachoo/BDL.svg?branch=master)](https://travis-ci.org/Wawachoo/BDL)
+
 **BDL core version**: `2.0.0`  
-**Engine API version**: `2.0.0`
+**Engine API version**: `2.0.0`  
 
 Extensible download tool.
 
